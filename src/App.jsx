@@ -141,7 +141,7 @@ function usePrecioLuz() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("https://api.preciodelaluz.org/v1/prices/all?zone=PCB");
+        const res = await fetch("/api/luz");
         if (!res.ok) throw new Error("HTTP " + res.status);
         const json = await res.json();
         const horas = Object.entries(json)
@@ -186,7 +186,7 @@ function useIPC() {
     (async () => {
       try {
         const res = await fetch(
-          "https://servicios.ine.es/wstempus/js/ES/DATOS_TABLA/50902?nult=36&tip=A"
+          "/api/ipc?nult=36"
         );
         if (!res.ok) throw new Error("INE HTTP " + res.status);
         const json = await res.json();

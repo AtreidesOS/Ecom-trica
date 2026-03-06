@@ -368,7 +368,7 @@ const SeccionIPC = () => {
               strokeWidth={2.5} dot={false} name="Índice"/>
           </LineChart>
         </ResponsiveContainer>
-        <FuenteBadge texto={`INE — Serie ${INE_SERIES[cat]} · API JSON INEbase · Datos mensuales`}/>
+        <FuenteBadge texto="INE — Tabla 50902 · Índices nacionales ECOICOP · API JSON INEbase"/>
       </div>
     </div>
   );

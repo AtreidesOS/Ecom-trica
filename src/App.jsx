@@ -215,8 +215,9 @@ function useIPC() {
         if (!cancelled) {
           if (Object.keys(resultado).length >= 2) {
             setDatos(resultado);
+            // datos reales OK — no mostramos error
           } else {
-            throw new Error("No se encontraron series válidas");
+            if (!cancelled) setDatos(MOCK_IPC);
           }
         }
       } catch (e) {

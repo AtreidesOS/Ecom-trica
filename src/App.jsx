@@ -157,7 +157,7 @@ function usePrecioLuz() {
         if (!serie?.attributes?.values?.length) throw new Error("Sin datos");
         const puntos = serie.attributes.values.map(v => ({
           hora: new Date(v.datetime).toLocaleTimeString("es-ES", {hour:"2-digit",minute:"2-digit"}),
-          precioMWh: +(v.value / 1000).toFixed(2),
+          precioMWh: +Number(v.value).toFixed(2),
           ts: new Date(v.datetime).getHours()
         }));
         if (!cancelled) { setDatos(puntos); setError(null); }

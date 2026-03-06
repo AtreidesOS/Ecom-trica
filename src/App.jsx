@@ -53,10 +53,10 @@ const MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","N
 
 // Mapeo de grupos ECOICOP — usamos DATOS_TABLA/50902 y filtramos por nombre
 const ECOICOP_GRUPOS = {
-  "Alimentación": "01 Alimentos y bebidas no alcohólicas",
-  "Energía":      "04 Vivienda, agua, electricidad",
-  "Transporte":   "07 Transporte",
-  "Ocio":         "09 Ocio y cultura",
+  "Alimentación": "01",
+  "Energía":      "04",
+  "Transporte":   "07",
+  "Ocio":         "09",
 };
 
 // ── UTILIDADES ────────────────────────────────────────────────────────────────
@@ -132,37 +132,40 @@ const TerritorySelector = ({ value, onChange, label="Territorio" }) => (
   </div>
 );
 
-// ── HOOK: PRECIO LUZ — preciodelaluz.org (API abierta, sin token) ─────────────
+// ── HOOK: PRECIO LUZ — REE apidatos directa ────────────────────────────────
 function usePrecioLuz() {
-  const [datos, setDatos] = useState(null);
+  const [datos, setDatos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const mockData = Array.from({length:24}, (_,i) => ({
+    hora: `${String(i).padStart(2,"0")}:00`,
+    precioMWh: +(80 + Math.sin(i/3)*60 + Math.random()*20).toFixed(2),
+    ts: i
+  }));
+
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/luz");
-        if (!res.ok) throw new Error("HTTP " + res.status);
+        const hoy = new Date().toISOString().split("T")[0];
+        const url = `https://apidatos.ree.es/es/datos/mercados/precios-mercados-tiempo-real?time_trunc=hour&start_date=${hoy}T00:00&end_date=${hoy}T23:59&geo_trunc=electric_system&geo_limit=peninsular&geo_ids=8741`;
+        const res = await fetch(url, { headers: { "Accept": "application/json" } });
+        if (!res.ok) throw new Error("REE " + res.status);
         const json = await res.json();
-        const horas = Object.entries(json)
-          .map(([key, val]) => ({
-            hora: key.split(" ")[1],
-            precioMWh: +val.price.toFixed(2),
-            barato: val["is-cheap"],
-            bajoMedia: val["is-under-avg"],
-          }))
-          .sort((a, b) => a.hora.localeCompare(b.hora));
-        setDatos(horas);
-      } catch (e) {
-        setError(e.message);
-        setDatos(Array.from({ length:24 }, (_, i) => ({
-          hora: `${String(i).padStart(2,"0")}:00`,
-          precioMWh: +(80 + Math.sin(i/3)*60 + Math.random()*20).toFixed(2),
-          barato: i < 7 || i > 22,
-          bajoMedia: i < 10 || i > 20,
-        })));
-      } finally { setLoading(false); }
+        const serie = json?.included?.[0];
+        if (!serie?.attributes?.values?.length) throw new Error("Sin datos");
+        const puntos = serie.attributes.values.map(v => ({
+          hora: new Date(v.datetime).toLocaleTimeString("es-ES", {hour:"2-digit",minute:"2-digit"}),
+          precioMWh: +(v.value / 1000).toFixed(2),
+          ts: new Date(v.datetime).getHours()
+        }));
+        if (!cancelled) { setDatos(puntos); setError(null); }
+      } catch(e) {
+        if (!cancelled) { setError(e.message); setDatos(mockData); }
+      } finally { if (!cancelled) setLoading(false); }
     })();
+    return () => { cancelled = true; };
   }, []);
 
   return { datos, loading, error };
@@ -193,14 +196,13 @@ function useIPC() {
         if (!Array.isArray(json)) throw new Error("Formato inesperado");
 
         const resultado = {};
-        for (const [catNombre, grupoBuscar] of Object.entries(ECOICOP_GRUPOS)) {
+        for (const [catNombre, cod] of Object.entries(ECOICOP_GRUPOS)) {
           try {
-            const prefijo = grupoBuscar.slice(0, 12).toLowerCase();
             const serie = json.find(s =>
               s && s.Nombre &&
-              s.Nombre.toLowerCase().includes(prefijo) &&
               s.Nombre.toLowerCase().includes("ndice") &&
-              !s.Nombre.toLowerCase().includes("ariac")
+              !s.Nombre.toLowerCase().includes("ariac") &&
+              s.Nombre.toLowerCase().includes(cod + " ")
             );
             if (serie && Array.isArray(serie.Data) && serie.Data.length > 0) {
               const puntos = serie.Data
